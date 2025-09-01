@@ -1,0 +1,23 @@
+###
+# IMPORT
+###
+import BrainMove as bm
+
+###
+# SIMULATION
+###
+# Parameters of simulation
+deterministic = True
+fig_name = "Traj2Target_Trace"
+cue = [[0,False,10,1,30,15],[0,False,10,1,30,-15]]
+if deterministic:
+    env_prop = bm.EnvProp()
+    beh_prop = [bm.BehProp(cue=cue)]
+    repeats = 50
+else:
+    env_prop = bm.EnvProp(angle_num=16,time_step=1e-3)
+    beh_prop = [bm.BehProp(cue=cue,N=10,angle_num=16)]
+    repeats = 1
+ind_prop = [bm.IndProp(beh_prop)]
+# Run the simulation
+bm.snapshot_targets(env_prop,ind_prop,['Blues'],fig_name,True,0,deterministic,repeats=repeats)
