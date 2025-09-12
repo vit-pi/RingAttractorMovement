@@ -783,7 +783,11 @@ class Pattern:
         :param deterministic: use the Euler method (deterministic=True, default) or the stochastic algorithm (deterministic=False)
         :type deterministic: bool
         """
+        percentage = 0
         while self.time <= self.env_prop.time_max:
+            if self.time >= percentage * self.env_prop.time_max / 100:
+                print("Simulation finished up to" + str(percentage) + "%")
+                percentage += 1
             self.update_pattern(deterministic)
 
     ###
@@ -1153,7 +1157,7 @@ def snapshot_brain_traj(pattern, ind, beh_cmap, labels, ax, allocentric=True):
         ax.set_ylabel("angle $\\theta$")
 
 # Plot a snapshot of brain and movement trajectories
-def snapshot_trajectory(env_prop, ind_prop, beh_cmap, fig_name, labels, seed, deterministic, allocentric=True, adjusted_plane=True):
+def snapshot_trajectory(env_prop, ind_prop, beh_cmap, fig_name, labels, seed, deterministic, allocentric=True, adjusted_plane=True, ticks=True):
     """
     Simulates a trajectory snapshot of an environment with specified properties,
     and generates a detailed figure depicting both the movement within the
@@ -1201,6 +1205,12 @@ def snapshot_trajectory(env_prop, ind_prop, beh_cmap, fig_name, labels, seed, de
     # plot the brains
     for ind in range(pattern.env_prop.ind_num):
         snapshot_brain_traj(pattern, ind, beh_cmap, labels, ax_brain[ind], allocentric)
+    # remove ticks if necessary
+    if not ticks:
+        ax_move.set_xticklabels([])
+        ax_move.set_yticklabels([])
+        for ind in range(pattern.env_prop.ind_num):
+            ax_brain[ind].set_xticklabels([])
     # save the figure
     if deterministic:
         fig_name += "_Det"
