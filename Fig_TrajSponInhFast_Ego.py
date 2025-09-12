@@ -9,7 +9,7 @@ from matplotlib.colors import LinearSegmentedColormap
 # SIMULATION
 ###
 # Parameters of simulation
-deterministic = True
+deterministic = False
 fig_name = "TrajSponInhFast_Ego"
 if deterministic:
     env_prop = bm.EnvProp(time_max=500,time_memory=500)
@@ -23,5 +23,5 @@ ind_prop = [bm.IndProp(beh_prop)]
 # Create a colormap
 yellows = LinearSegmentedColormap.from_list("Yellows", [(1,1,0.8), (0.8, 0.6, 0)])
 # Run the simulation
-bm.snapshot_trajectory(env_prop,ind_prop,[yellows],fig_name,True,seed,deterministic,allocentric=False,ticks=False)
+bm.snapshot_trajectory(env_prop,ind_prop,[yellows],fig_name,True,seed,deterministic,allocentric=False,ticks=False,stat_t_lag=250)
 

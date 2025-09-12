@@ -7,7 +7,7 @@ import BrainMove as bm
 # SIMULATION
 ###
 # Parameters of simulation
-deterministic = True
+deterministic = False
 fig_name = "TrajSponLooping_Ego"
 if deterministic:
     env_prop = bm.EnvProp(time_max=1000, time_memory=1000)
@@ -19,5 +19,5 @@ else:
     seed = 15
 ind_prop = [bm.IndProp(beh_prop)]
 # Run the simulation
-bm.snapshot_trajectory(env_prop,ind_prop,['Reds'],fig_name,True,seed,deterministic,allocentric=False,ticks=False)
+bm.snapshot_trajectory(env_prop,ind_prop,['Reds'],fig_name,True,seed,deterministic,allocentric=False,ticks=False,stat_t_lag=500)
 

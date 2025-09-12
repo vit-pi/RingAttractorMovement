@@ -937,6 +937,125 @@ class Pattern:
             distance = np.min([distance, self.get_cue_distance(ind)])
         return distance
 
+    ###
+    # Calculate statistics of the trajectories
+    ###
+    # get autocorrelation for a given time lag
+    def find_autocorrelation(self, ind, t_lag):
+        """
+        Calculate autocorrelation with a specified t_lag for a given individual and its trajectory.
+
+        :param ind: Index of the individual.
+        :type ind: int
+        :param t_lag: Length of time lag.
+        :type t_lag: float
+        :return: mean (float), standard deviation (float) of the autocorrelation.
+        """
+        # Get trajectory
+        time, x, y = self.get_movement_trajectory(ind)
+        # Calculate velocity components at each time step
+        vx = np.diff(x) / np.diff(time)
+        vy = np.diff(y) / np.diff(time)
+        velocities = np.vstack((vx, vy)).T  # (N-1, 2)
+        # Convert t_lag into the number of time steps
+        lag_steps = int(t_lag / self.env_prop.time_step)
+        # If t_lag exceeds the available trajectory length
+        if lag_steps < 0 or lag_steps >= velocities.shape[0]:
+            raise ValueError("t_lag is out of bounds for the trajectory.")
+        # Calculate autocorrelations for all valid time points
+        autocorrelations = np.zeros(velocities.shape[0] - lag_steps)
+        for t in range(velocities.shape[0] - lag_steps):
+            v_t = velocities[t]
+            v_t_lag = velocities[t + lag_steps]
+            autocorrelations[t] = np.dot(v_t, v_t_lag) / self.find_ind(ind).v0**2
+        # Calculate mean and standard deviation
+        mean_autocorr = np.mean(autocorrelations)
+        std_autocorr = np.std(autocorrelations)
+        return mean_autocorr, std_autocorr
+
+    # get autocorrelation for all time lags up to t_lag_max
+    def get_autocorrelations_all(self, ind, t_lag_max):
+        """
+        Calculate autocorrelation for all time lags up to t_lag_max for a given individual and its trajectory.
+
+        :param ind: Index of the individual.
+        :type ind: int
+        :param t_lag_max: Maximum length of time lag.
+        :type t_lag_max: float
+        :return: mean (float), standard deviation (float) of the autocorrelation.
+        """
+        # Convert t_lag into the number of time steps
+        lag_steps_max = int(np.floor(t_lag_max / self.env_prop.time_step)+1)
+        # Maximal number of sampled points
+        num = min(100, lag_steps_max)
+        # Initialize autocorrelation array
+        mean = np.zeros(num+1)
+        std = np.zeros(num+1)
+        time_lags = np.zeros(num+1)
+        # Calculate autocorrelations for all valid time points
+        for n in range(num+1):
+            lag_steps = int(n * lag_steps_max / num)
+            mean_autocorr, std_autocorr = self.find_autocorrelation(ind, lag_steps * self.env_prop.time_step)
+            mean[n] = mean_autocorr
+            std[n] = std_autocorr
+            time_lags[n] = lag_steps * self.env_prop.time_step
+        return time_lags, mean, std
+
+    # get mean squared displacement for a given time lag
+    def find_mean_squared_displacement(self, ind, t_lag):
+        """
+        Calculate mean-squared displacement for a specified t_lag for a given individual and its trajectory.
+
+        :param ind: Index of the individual.
+        :type ind: int
+        :param t_lag: Length of time lag.
+        :type t_lag: float
+        :return: mean (float), standard deviation (float) of the autocorrelation.
+        """
+        # Get trajectory
+        time, x, y = self.get_movement_trajectory(ind)
+        # Convert t_lag into the number of time steps
+        lag_steps = int(t_lag / self.env_prop.time_step)
+        # If t_lag exceeds the available trajectory length
+        if lag_steps < 0 or lag_steps >= time.size:
+            raise ValueError("t_lag is out of bounds for the trajectory.")
+        # Calculate autocorrelations for all valid time points
+        msd = np.zeros(time.size - lag_steps)
+        for t in range(time.size - lag_steps):
+            msd[t] = ((x[t+lag_steps] - x[t])**2 + (y[t+lag_steps] - y[t])**2)/self.find_ind(ind).v0 ** 2
+        # Calculate mean and standard deviation
+        mean_autocorr = np.mean(msd)
+        std_autocorr = np.std(msd)
+        return mean_autocorr, std_autocorr
+
+    # get mean squared displacement for all time lags up to t_lag_max
+    def get_mean_squared_displacements_all(self, ind, t_lag_max):
+        """
+        Calculate autocorrelation for all time lags up to t_lag_max for a given individual and its trajectory.
+
+        :param ind: Index of the individual.
+        :type ind: int
+        :param t_lag_max: Maximum length of time lag.
+        :type t_lag_max: float
+        :return: mean (float), standard deviation (float) of the autocorrelation.
+        """
+        # Convert t_lag into the number of time steps
+        lag_steps_max = int(np.floor(t_lag_max / self.env_prop.time_step)+1)
+        # Maximal number of sampled points
+        num = min(100,lag_steps_max)
+        # Initialize autocorrelation array
+        mean = np.zeros(num+1)
+        std = np.zeros(num+1)
+        time_lags = np.zeros(num+1 )
+        # Calculate autocorrelations for all valid time points
+        for n in range(num+1):
+            lag_steps = int(n * lag_steps_max / num)
+            mean_msd, std_msd = self.find_mean_squared_displacement(ind, lag_steps * self.env_prop.time_step)
+            mean[n] = mean_msd
+            std[n] = std_msd
+            time_lags[n] = lag_steps * self.env_prop.time_step
+        return time_lags, mean, std
+
 ###
 # PLOTTING FUNCTIONS
 ###
@@ -1156,8 +1275,58 @@ def snapshot_brain_traj(pattern, ind, beh_cmap, labels, ax, allocentric=True):
         ax.set_xlabel("time t")
         ax.set_ylabel("angle $\\theta$")
 
+# Plot statistics of an animal trajectory
+def statistics_move(pattern, ind, t_lag_max, labels, ax):
+    """
+    Generates a plot of statistics for the animal's movement (autocorrelation and mean squared displacement).
+
+    :param pattern: A data structure encapsulating the environmental and individual properties,
+        including positions and cues.
+    :type pattern: Pattern
+    :param ind: Index of the individual whose statistics are to be plotted.
+    :type ind: int
+    :param t_lag_max: Maximum length of time lag for the plotted statistics.
+    :type t_lag_max: float
+    :param labels: A boolean indicating whether to include axis labels ("space x" and "space y").
+    :type labels: bool
+    :param ax: A list of Matplotlib Axes object used to plot each type of statistics.
+    :type ax: list[matplotlib.axes.Axes]
+
+    :return: None
+    """
+    # get statistics to be plotted
+    lag_auto, mean_auto, std_auto = pattern.get_autocorrelations_all(ind,t_lag_max)
+    lag_msd, mean_msd, std_msd = pattern.get_mean_squared_displacements_all(ind,t_lag_max)
+
+    # plot mean squared displacement (MSD) in black
+    ax[0].plot(lag_msd, mean_msd, color='black', label="Mean")
+    ax[0].fill_between(lag_msd, mean_msd - std_msd, mean_msd + std_msd, color='black', alpha=0.2, edgecolor='none', label="Std Dev")
+
+    # plot autocorrelation in red
+    ax[1].plot(lag_auto, mean_auto, color='tab:red', label="Mean")
+    ax[1].fill_between(lag_auto, mean_auto - std_auto, mean_auto + std_auto, color='tab:red', alpha=0.2, edgecolor='none', label="Std Dev")
+
+    # set limits
+    ax[0].set_xlim(0, t_lag_max)
+    ax[1].set_xlim(0, t_lag_max)
+    #ax[0].set_ylim([0, (t_lag_max) ** 2])
+    ax[0].set_ylim([0, np.max(mean_msd+std_msd)])
+    ax[1].set_ylim([-1.1, 1.1])
+    ax[1].axhline(0, color='tab:red', linestyle=":",linewidth=1,zorder=1)
+    ax[1].axhline(1, color='tab:red', linestyle=":", linewidth=1, zorder=1)
+    ax[1].axhline(-1, color='tab:red', linestyle=":", linewidth=1, zorder=1)
+
+    # labels
+    if labels:
+        ax[1].tick_params(axis="y", colors="tab:red")
+        ax[1].yaxis.label.set_color("tab:red")
+        ax[0].set_xlabel("time lag $\\Delta t$")
+        ax[0].set_ylabel("mean squared displacement")
+        ax[0].set_xlabel("time lag $\\Delta t$")
+        ax[1].set_ylabel("autocorrelation")
+
 # Plot a snapshot of brain and movement trajectories
-def snapshot_trajectory(env_prop, ind_prop, beh_cmap, fig_name, labels, seed, deterministic, allocentric=True, adjusted_plane=True, ticks=True):
+def snapshot_trajectory(env_prop, ind_prop, beh_cmap, fig_name, labels, seed, deterministic, allocentric=True, adjusted_plane=True, ticks=True, stat_t_lag=None):
     """
     Simulates a trajectory snapshot of an environment with specified properties,
     and generates a detailed figure depicting both the movement within the
@@ -1218,6 +1387,16 @@ def snapshot_trajectory(env_prop, ind_prop, beh_cmap, fig_name, labels, seed, de
         fig_name += "_Stoch"
     fig.savefig("Figures//" + fig_name + ".png", dpi=300, format='png')
     fig.savefig("Figures//" + fig_name + ".svg")
+    # plot statistics if necessary
+    if stat_t_lag is not None:
+        fig_stats, ax_msd = plt.subplots(ncols=pattern.env_prop.ind_num,figsize=(cell_size, cell_size*pattern.env_prop.ind_num))
+        if pattern.env_prop.ind_num == 1:
+            ax_msd = [ax_msd]
+        for ind in range(pattern.env_prop.ind_num):
+            ax_auto = ax_msd[ind].twinx()
+            statistics_move(pattern, 0, stat_t_lag, labels, [ax_msd[ind],ax_auto])
+        fig_stats.savefig("Figures//" + fig_name + "_Stats.png", dpi=300, format='png')
+        fig_stats.savefig("Figures//" + fig_name + "_Stats.svg")
 
 # Create movie snapshots of both brain and movement dynamics
 def movie_snapshots(env_prop, ind_prop, plot_time, heading, trajectory, anim_name, seed):

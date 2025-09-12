@@ -9,8 +9,8 @@ from matplotlib.colors import LinearSegmentedColormap
 # SIMULATION
 ###
 # Parameters of simulation
-deterministic = True
-fig_name = "TrajSponDestBump_Allo"
+deterministic = False
+fig_name = "TrajSponDownBump_Allo"
 if deterministic:
     env_prop = bm.EnvProp(time_max=5, time_memory=5)
     beh_prop = [bm.BehProp(omega0=10,v0=100,init_hold=0, S=np.exp(-5))]
@@ -25,5 +25,5 @@ ind_prop = [bm.IndProp(beh_prop)]
 # Create a colormap
 yellows = LinearSegmentedColormap.from_list("Yellows", [(1,1,0.8), (0.8, 0.6, 0)])
 # Run the simulation
-bm.snapshot_trajectory(env_prop,ind_prop,[yellows],fig_name,True,seed,deterministic,ticks=False)
+bm.snapshot_trajectory(env_prop,ind_prop,[yellows],fig_name,True,seed,deterministic,ticks=False, stat_t_lag=3)
 
