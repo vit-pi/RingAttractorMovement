@@ -8,8 +8,10 @@ from matplotlib.colors import LinearSegmentedColormap
 ###
 # SIMULATION
 ###
-# Parameters of simulation
+# Parameter to determine the figure panel: Fig. 3M,O = False, Fig. 13J = False, Fig. S8D,F = False, Fig. S7L,N = True
 deterministic = False
+
+# Parameters of simulation
 fig_name = "TrajSponDownBump_Ego"
 if deterministic:
     env_prop = bm.EnvProp(time_max=5, time_memory=5)

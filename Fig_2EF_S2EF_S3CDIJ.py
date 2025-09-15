@@ -6,8 +6,10 @@ import BrainMove as bm
 ###
 # SIMULATION
 ###
-# Parameters of simulation
+# Parameter to determine the figure panel: Fig. 2E-F = True, Fig. S3C-D = True, Fig. S2E-F = False, Fig. S3I-J = False
 deterministic = False
+
+# Parameters of simulation
 fig_name = "Traj3Target_Trace_SpCue"
 cue = [[3,False,2,1,22,15],[3,False,2,1,22,-15],[3,False,2,1,33,0]]
 if deterministic:

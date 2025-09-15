@@ -6,10 +6,12 @@ import BrainMove as bm
 ###
 # SIMULATION
 ###
-# Parameters of simulation
+# Parameter to determine the figure panel: Fig. 2A-B = True, Fig. S2A-B = False
 deterministic = False
-fig_name = "Traj3Target_Trace_SpCue_Far"
-cue = [[3,False,2,1,22,15],[3,False,2,1,22,-15],[3,False,2,1,38,0]]
+
+# Parameters of simulation
+fig_name = "Traj1Target_Trace_SpCue"
+cue = [[3,False,2,1,35,0]]
 if deterministic:
     env_prop = bm.EnvProp()
     beh_prop = [bm.BehProp(cue=cue)]

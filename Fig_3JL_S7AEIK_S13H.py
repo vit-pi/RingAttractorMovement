@@ -8,20 +8,22 @@ from matplotlib.colors import LinearSegmentedColormap
 ###
 # SIMULATION
 ###
-# Parameters of simulation
+# Parameter to determine the figure panel: Fig. 3J,L = False, Fig. 13H = False, Fig. S7A,E = False, Fig. S7I,K = True
 deterministic = False
-fig_name = "TrajSponInh_Allo"
+
+# Parameters of simulation
+fig_name = "TrajSponInhFast_Ego"
 if deterministic:
     env_prop = bm.EnvProp(time_max=500,time_memory=500)
-    beh_prop = [bm.BehProp(omega0=30,init_hold=0,S=np.exp(-5))]
+    beh_prop = [bm.BehProp(allo=False,omega0=1000,v0=100,init_hold=0,S=np.exp(-5))]
     seed = 0
 else:
     env_prop = bm.EnvProp(angle_num=16,time_step=0.005,time_max=500,time_memory=500)
-    beh_prop = [bm.BehProp(N=10,angle_num=16,omega0=30,init_hold=0,S=np.exp(-5))]
+    beh_prop = [bm.BehProp(N=10,angle_num=16,allo=False,omega0=1000,v0=100,init_hold=0,S=np.exp(-5))]
     seed = 2
 ind_prop = [bm.IndProp(beh_prop)]
 # Create a colormap
 yellows = LinearSegmentedColormap.from_list("Yellows", [(1,1,0.8), (0.8, 0.6, 0)])
 # Run the simulation
-bm.snapshot_trajectory(env_prop,ind_prop,[yellows],fig_name,True,seed,deterministic,ticks=False,stat_t_lag=250)
+bm.snapshot_trajectory(env_prop,ind_prop,[yellows],fig_name,True,seed,deterministic,allocentric=False,ticks=False,stat_t_lag=250)
 

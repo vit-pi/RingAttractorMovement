@@ -6,8 +6,10 @@ import BrainMove as bm
 ###
 # SIMULATION
 ###
-# Parameters of simulation
+# Parameter to determine the figure panel: Fig. 3A,B = False, Fig. 13A = False, Fig. S6A,B = True
 deterministic = False
+
+# Parameters of simulation
 fig_name = "TrajSponLine_Allo"
 if deterministic:
     env_prop = bm.EnvProp(time_max=1000, time_memory=1000)

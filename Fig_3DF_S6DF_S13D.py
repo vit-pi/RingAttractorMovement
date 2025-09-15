@@ -6,8 +6,10 @@ import BrainMove as bm
 ###
 # SIMULATION
 ###
-# Parameters of simulation
+# Parameter to determine the figure panel: Fig. 3D,F = False, Fig. 13D = False, Fig. S6D,F = True
 deterministic = False
+
+# Parameters of simulation
 fig_name = "TrajSponWavy_Ego"
 if deterministic:
     env_prop = bm.EnvProp(time_max=500,time_memory=500)
