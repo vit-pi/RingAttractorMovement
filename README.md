@@ -12,23 +12,20 @@ This file contains the lower-level objects and functions that are called by the 
 
 To initialize the Pattern object, the initial pattern is required in addition to EnvProp and SpecProp objects. This can be achieved with the init_pattern function. To make a desired plot of the current state of the Pattern object, the plotting functions are used.
 
-### Movie.py
-This code reproduces all supplementary movies in [1]. The snapshots of the output movies are saved to new subfolders created in the Movies folder.
-
-### FigX_file.py
+### Fig_file.py
 These files reproduce various panels of the respective figures in [1]. Instructions for reproducing specific figure panels are provided in the table bellow. The output preliminary figures are saved in the Figures folder.
 
 ## Installation guide
-(Tested on Windows 11 Home, Windows 11 Home, Intel(R) Core(TM) i7-8550U CPU, 16 GB RAM, Python and PyCharm installed. The estimated run time for producing a Figure panel or a Movie snapshot as in [1]: 1 second - 3 hours, depending on a particular task.)
+(Tested on macOS Sequoia 15.6.1, Apple M4 Max, 128 GB RAM, Python and PyCharm installed. The estimated run time for producing a movement trajectory in [1]: 5 minutes (where the exact runt-time might depending on a particular task.)
 1) Install Python (https://www.python.org/) and PyCharm (https://www.jetbrains.com/pycharm/).
 2) Download this project and save it into a folder.
 3) Open this folder with PyCharm.
 
-## Guide to reproduce Figures and Movies of [1]
-1) Open a file of interest (FigX_file.py or Movie.py).
-2) Modify the "External parameters" in the file to reproduce the desired Figure or Movie in [1] (see instructions in each file).
+## Guide to reproduce Figures from [1]
+1) Open a file of interest (Fig_file.py based on the table above).
+2) Modify any parameters if needed (see instructions in each file).
 3) Run the file.
-4) Output file(s) appear in the Figures/Sketches folder (resp. Movies folder).
+4) Output plot(s) appear in the Figures folder.
 
 ## Demo
 1) Open Fig1_DiffPlane.py.
