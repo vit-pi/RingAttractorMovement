@@ -12,8 +12,8 @@ This file contains the lower-level objects and functions that are called by the 
 
 To initialize the Pattern object, the initial pattern is required in addition to EnvProp and SpecProp objects. This can be achieved with the init_pattern function. To make a desired plot of the current state of the Pattern object, the plotting functions are used.
 
-### Fig_file.py
-These files reproduce various panels of the respective figures in [1]. Instructions for reproducing specific figure panels are provided in the table bellow. The output preliminary figures are saved in the Figures folder.
+### Fig_X.py
+These files reproduce various figure panels X in [1]. If more than one panel is provided (e.g. Fig_X_Y.py), the beginning of the file includes a boolean variable (usually called deterministic, corresponding to mean-field as opposed to stochastic simulations) and a description how to set this variable (True/False) to reproduce an appropriate figure panel (X/Y). The output preliminary figures are saved in the Figures folder.
 
 ## Installation guide
 (Tested on macOS Sequoia 15.6.1, Apple M4 Max, 128 GB RAM, Python and PyCharm installed. The estimated run time for producing a movement trajectory in [1]: 5 minutes (where the exact runt-time might depending on a particular task.)
@@ -22,16 +22,16 @@ These files reproduce various panels of the respective figures in [1]. Instructi
 3) Open this folder with PyCharm.
 
 ## Guide to reproduce Figures from [1]
-1) Open a file of interest (Fig_file.py based on the table above).
-2) Modify any parameters if needed (see instructions in each file).
+1) Open a file of interest (Fig_X.py based on the table above).
+2) Modify the boolean variable if needed (see instructions in each file).
 3) Run the file.
 4) Output plot(s) appear in the Figures folder.
 
 ## Demo
-1) Open Fig1_DiffPlane.py.
+1) Open Fig_1.py.
 2) No parameters need to be modified in this case.
 3) Run the file.
-4) Open the folder "Figure/Sketches" to find the new file Fig1_DiffPlane.svg.
+4) Open the folder "Figure" to find the new files Fig_ModelOverview.png and Fig_ModelOverview.svg.
 
 # References
 [1] V. Piskovsky, A. Paula, D. Gorbonos, P.K. Maini, I.D. Couzin, The neural basis of spatial exploration and decision-making, 2025.
