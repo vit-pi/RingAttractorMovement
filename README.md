@@ -1,5 +1,5 @@
-# MotilityEvolutionPatterns
-This project provides the code to explore how the evolution of predator-prey motility constrains the formation of spatio-temporal patterns [1]. It is instructive to first read [1] to understand this project. The code was written in Python.
+# RingAttractorMovement
+This project provides the code to explore how different animal movement trajectories arise from the underlying dynamics of neural ring attractors [1]. It is instructive to first read [1] to understand this project. The code was written in Python.
 
 ## Code structure
 ### Pattern.py
@@ -16,7 +16,7 @@ To initialize the Pattern object, the initial pattern is required in addition to
 This code reproduces all supplementary movies in [1]. The snapshots of the output movies are saved to new subfolders created in the Movies folder.
 
 ### FigX_file.py
-These files reproduce various panels of the respective Figure X in [1]. Most FigX_file.py files contain External parameters specified at the beginning of each file, with instructions on which combination of these parameters reproduces which Figure (resp. Figure panel). The output preliminary figures are saved in the Figures/Sketches folder.
+These files reproduce various panels of the respective figures in [1]. Instructions for reproducing specific figure panels are provided in the table bellow. The output preliminary figures are saved in the Figures folder.
 
 ## Installation guide
 (Tested on Windows 11 Home, Windows 11 Home, Intel(R) Core(TM) i7-8550U CPU, 16 GB RAM, Python and PyCharm installed. The estimated run time for producing a Figure panel or a Movie snapshot as in [1]: 1 second - 3 hours, depending on a particular task.)
