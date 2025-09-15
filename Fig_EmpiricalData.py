@@ -4,7 +4,7 @@ import pandas as pd
 # File path and list of sheet names
 fig_name = "EmpiricalTrajectories"
 file_path = "SourceData/EmpiricalTrajectories.xlsx"
-trajectory_sheets = ["Data1", "Data5", "Data3", "Data4", "Data1", "Data6", "Data7", "Data8", "Data11", "Data13"]
+trajectory_sheets = ["Data1", "Data5", "Data14", "Data4", "Data1", "Data6", "Data7", "Data8", "Data11", "Data13"]
 
 # Number of rows and columns for the subplot grid
 num_rows, num_cols = 2, 5
