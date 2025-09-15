@@ -3,14 +3,15 @@ This project provides the code to explore how different animal movement trajecto
 
 ## Code structure
 ### Pattern.py
-This file contains the lower-level objects and functions that are called by the rest of the files. Objects EnvProp and SpecProp store information about the information of the environment where the studied organisms move (EnvProp) and about the properties of these organisms (SpecProp). The IntFit objects carry the information about the fecundity functions of each organism (see [1]) and are passed as an attribute to the EnvProp object. The EnvProp and SpecProp objects are passed to the Pattern object (the main object), which holds the information about the spatial distribution of organisms of all diffusivities at a particular time. This object contains methods to (1) transform between data structures that describe this distribution, (2) find the properties of this distribution, and (3) update this distribution in time.  The important update functions are:
+This file contains the lower-level objects and functions that are called by the rest of the files. Specifically, the following objects are included:
 
-1) update_pattern_euler(): used to update the distribution and time $t \to t + \Delta t$,
-2) mutation_update(): used before every time-step of the Euler method above if mutants of variable diffusivity are to be introduced into the population,
-3) fitness_update(): used before every time-step of the Euler method and before mutation_update() to keep track of the total fitness of each organism,
-4) fitness_update(): used before every time-step of the Euler method and before mutation_update() to keep track of the expected diffusivity of each organism.
-
-To initialize the Pattern object, the initial pattern is required in addition to EnvProp and SpecProp objects. This can be achieved with the init_pattern function. To make a desired plot of the current state of the Pattern object, the plotting functions are used.
+- BehProp: saves the parameters of the neural dynamics and animal movement (define animal behaviour).
+- IndProp: saves multiple different behaviours of a single individual (a list of BehProp objects) as well as a specification of stochastic transition rates between them.
+- EnvProp: saves the parameters of the environment.
+- Pattern: based on a list of individuals (IndProp objects) and environmental properties (EnvProp), this object allows for stochastic and mean-field simulations of the resulting dynamics - see [1] for details.
+- TwoTargets: used for analytical predictions in Fig. S5 of [1]
+  
+Additionally, multiple plotting functions that use these objects are included. For details, see the documentation of each object and plotting function.
 
 ### Fig_X.py
 These files reproduce various figure panels X in [1]. If more than one panel is provided (e.g. Fig_X_Y.py), the beginning of the file includes a boolean variable (usually called deterministic, corresponding to mean-field as opposed to stochastic simulations) and a description how to set this variable (True/False) to reproduce an appropriate figure panel (X/Y). The output preliminary figures are saved in the Figures folder.
