@@ -1117,7 +1117,8 @@ def snapshot_brain(pattern, ind, heading, ax, **kwargs):
     if 'rasterized' not in kwargs:
         kwargs['rasterized'] = True
     cm = ax.pcolormesh(th, r, activity, **kwargs)
-    ax.plot(azimuth, np.array([0.5 for i in range(pattern.env_prop.angle_num)]), color='black', linewidth=1)
+    ax.plot(np.linspace(0,2*np.pi,100), np.array([0.5 for i in range(100)]), color='black', linewidth=2)
+    ax.plot(np.linspace(0, 2 * np.pi, 100), np.array([1.5 for i in range(100)]), color='black', linewidth=2)
     ax.set_yticks([])
     ax.set_xticks([])
     # obtain and plot heading angle
@@ -1399,7 +1400,7 @@ def snapshot_trajectory(env_prop, ind_prop, beh_cmap, fig_name, labels, seed, de
         fig_stats.savefig("Figures//" + fig_name + "_Stats.svg")
 
 # Create movie snapshots of both brain and movement dynamics
-def movie_snapshots(env_prop, ind_prop, plot_time, heading, trajectory, anim_name, seed):
+def movie_snapshots(env_prop, ind_prop, beh_cmap, plot_time, heading, trajectory, anim_name, seed):
     """
     Generates a series of snapshots for a simulation.
 
@@ -1411,10 +1412,12 @@ def movie_snapshots(env_prop, ind_prop, plot_time, heading, trajectory, anim_nam
     :type env_prop: EnvProp
     :param ind_prop: Properties of the individuals.
     :type ind_prop: list[IndProp]
+    :param beh_cmap: The colormap used for visualizing brain activities.
+    :type beh_cmap: matplotlib.colors.Colormap
     :param plot_time: Interval of time between simulation snapshots, determining the granularity of captured frames.
     :type plot_time: float
     :param heading: A boolean flag indicating whether to include individual heading vectors in the snapshots.
-    :type heading: str
+    :type heading: bool
     :param trajectory: A boolean flag indicating whether to include individual trajectories in the snapshots.
     :type trajectory: bool
     :param anim_name: The base name of the animation, used for naming the folder where snapshots are stored
@@ -1425,35 +1428,30 @@ def movie_snapshots(env_prop, ind_prop, plot_time, heading, trajectory, anim_nam
     """
 
     # create figure
-    row = 5
+    row = 2
     cell_size = 1.5
     if env_prop.ind_num > 2:
-        row += 2 * ((env_prop.ind_num - 3) // 4 + 1)
-    fig = plt.figure(figsize=(4 * cell_size, row / 2 * cell_size), layout="constrained")
+        row += (env_prop.ind_num - 3) // 3 + 1
+    fig = plt.figure(figsize=(3 * cell_size, row * cell_size))
     # crate axes
-    gs = fig.add_gridspec(row, 4)
-    # - colorbar
-    gs_col = gs[0,0].subgridspec(nrows=2, ncols=3, width_ratios=[0.2,1,0.2],height_ratios=[1,1])
-    ax_col = fig.add_subplot(gs_col[0, 1])
-    ax_col.set_yticks([])
-    ax_col.set_xticks([])
+    gs = fig.add_gridspec(row, 3)
     # - move
-    ax_move = fig.add_subplot(gs[0:5, 1:4])
+    ax_move = fig.add_subplot(gs[0:2, 1:3])
     # - brain
     ax_brain = []
-    ax_brain.append(fig.add_subplot(gs[1:3, 0], projection='polar'))
+    ax_brain.append(fig.add_subplot(gs[0, 0], projection='polar'))
     if env_prop.ind_num > 1:
-        ax_brain.append(fig.add_subplot(gs[3:5, 0], projection='polar'))
+        ax_brain.append(fig.add_subplot(gs[1, 0], projection='polar'))
     if env_prop.ind_num > 2:
         for extra_ind in range(env_prop.ind_num - 2):
-            rw = 2 * (extra_ind // 4) + 5
-            cl = extra_ind % 4
-            ax_brain.append(fig.add_subplot(gs[rw:rw + 2, cl], projection='polar'))
+            rw = (env_prop.ind_num - 3) // 3 + 1
+            cl = (env_prop.ind_num - 3) % 3
+            ax_brain.append(fig.add_subplot(gs[rw, cl], projection='polar'))
     # prepare folder
     date_time = datetime.datetime.now()
     folder_specifier = "_" + str(date_time.date().day) + "_" + str(date_time.date().month) + "_" + str(
         date_time.date().year) + "_" + str(date_time.time().hour) + "_" + str(date_time.time().minute)
-    folder_name = "Movies\\" + anim_name + folder_specifier
+    folder_name = "Movies//" + anim_name + folder_specifier
     os.mkdir(folder_name)
     # create a simulation and save its properties
     if seed is not None:
@@ -1465,21 +1463,16 @@ def movie_snapshots(env_prop, ind_prop, plot_time, heading, trajectory, anim_nam
     while pattern.time <= pattern.env_prop.time_max:
         if pattern.time >= plot_index*plot_time:
             # snapshot of movement
-            snapshot_move(pattern, heading, trajectory, False, False, ax_move)
+            snapshot_move(pattern, heading, trajectory, False,  ax_move,True)
+            ax_move.set_xticks([])
+            ax_move.set_yticks([])
             # snapshot of the brain
             for ind in range(pattern.env_prop.ind_num):
-                cm = snapshot_brain(pattern,ind,True,ax_brain[ind])
-            # create the colorbar if this is the first simulation
-            if plot_index == 0:
-                fig.colorbar(cm, cax=ax_col, orientation='horizontal', ticks=[],)
-                ax_col.set_xlabel("neural activity", labelpad=0)
-                xmin, xmax = ax_col.get_xlim()
-                ax_col.set_xticks([xmin,xmax])
-                ax_col.set_xticklabels(["low", "high"])
+                cm = snapshot_brain(pattern,ind,True,ax_brain[ind],cmap=beh_cmap[ind])
             # update simulation
             pattern.update_pattern()
             # take a snapshot and clear the canvas
-            fig.savefig(folder_name+"\\"+anim_name+"-"+str(plot_index+1)+".png", dpi=300, format='png')  # save the figure to file
+            fig.savefig(folder_name+"//"+anim_name+"-"+str(plot_index+1)+".png", dpi=300, format='png')  # save the figure to file
             for ax in ax_brain:
                 for artist in ax.lines + ax.collections + ax.patches:
                     artist.remove()
