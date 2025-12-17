@@ -23,7 +23,7 @@ from matplotlib.colors import ListedColormap
 # Contains properties that define a behaviour (state of brain, speed, ...)
 class BehProp:
     # initialize by providing parameters
-    def __init__(self, kernel=(0, 10, 0.5), S=1, cue=None, T=1, tau=0.0, t_neuro=1.0, angle_num=64, v0=0.1,omega0=1,allo=True,init_pos=(0.,0.), init_head=0.0, init_hold=0.0, init_brain=(0,), N=1000):
+    def __init__(self, kernel=(0, 10, 0.5), S=1, cue=None, T=1, tau=0.0, t_neuro=1.0, angle_num=64, v0=0.1,omega0=1,allo=True,init_pos=(0.,0.), init_head=0.0, init_hold=0.0, init_brain=(0,), N=1000, S_update_rule=[0]):
         """
         Initializes the parameters and initial configurations of neural and movement dynamics
         to model different scenarios of cognitive or behavioral activity.
@@ -39,9 +39,9 @@ class BehProp:
         :type S: float
 
         :param cue: A list of environmental cues. Each cue element is defined as
-            [type, random, kappa, mu, position], where:
+            [type, random, kappa, strength, position], where:
             - `random` (bool): Indicates uniform random position generation (True/False).
-            - `kappa` (float): Specifies the inverse width in von Mises distribution.
+            - `kappa` (float): Specifies the inverse width in von Mises distribution/width of a cue for spatially extended cues (type=3,4).
             - `strength` (float): Ranges between 0 to 1 to reflect overall cue strength.
             - `type` (int): Represents the type of cue:
                 0 - Fixed cue; position defined by [pos_x, pos_y].
@@ -49,6 +49,7 @@ class BehProp:
                 2 - Fixed angle positioned at `theta_c`.
                 3 - Fixed spatially extended cue; position defined by [pos_x, pos_y].
                     Note that instead of 'kappa' at index 2, this element encodes the radius of the cue.
+                4 - a cue at [pos_x0, 0] is presented until the animal reaches x>=pos_x1, at which point a cue [pos_x1,pos_y] is presented for time `t_blink`, after which the cue disappears completely. So, position defined by: pos_x0, pos_x1, pos_y, t_blink, t_pass, t_set: where t_pass and t_set must be set to 0, t_pass start counting time after passing through pos_x0 and t_set remembers the crossing time.
         :type cue: Union(None,list)
 
         :param T: Neural noise.
@@ -96,6 +97,11 @@ class BehProp:
             - type=6 (brain fp, but initialize k groups of neural units with same value): [type, k]
         :type init_brain: tuple
 
+        :param S_update_rule: Indicates how the intrinsic stimulation parameter S is updated during the simulation. Defined as [type, parameters]:
+            - type=0: no updating
+            - type=1: periodic update of S with frequency `omega` (float, param0)
+            - type=2: feedback update of S: increase at rate `a` (flota, param0) per angular frequency of animal rotation, decay at rate `b` (float, param1)
+        :type S_update_rule: list
         Attributes:
         - variables with names identical to the input parameters.
         + angle_step: Sampling distance / angular step along the circle, calculated as `2 * pi / angle_num` (float).
@@ -106,7 +112,8 @@ class BehProp:
                                             # [0,J,nu] for cosine-shaped interaction, [0, 2, 0.5]
                                             # [1,J,kappa] for circular mexican hat function, [1, 3, 1, 0.5]
                                             # [2,J,kappa] for shifted von Mises distribution [2, 1, 1O]
-        self.S = S                          # intrinsic stimulation
+        self.S_init = S                     # intrinsic stimulation (initial value)
+        self.S = S                          # intrinsic stimulation (possibly variable in time)
         if cue is None:                     # cue=[cue1,...], cue1=[type,random,kappa,mu,position]
             self.cue = []                   # random=t/f (true means position uniformly randomly generated when beh switched on)
         else:                               # kappa = 10 (parameter in the von Mises distribution - inverse of width)
@@ -136,6 +143,8 @@ class BehProp:
                                         # type=4 (fixed n0, and n1 within w of cue at position x,y): [type, n0, n1, w, x, y]
                                         # type=5 (fixed n0, and n1 within w away from cue x,y): [type, n0, n1, w, x, y]
                                         # type=6 (brain fp, but initialize k groups of neural units with same value): [type, k]
+        # update rule for the intrinsic stimulation parameter S
+        self.S_update_rule = S_update_rule
         # save the fixed point of brain activity
         self.brain_fp = self.find_brain_fp()
 
@@ -217,6 +226,32 @@ class BehProp:
         :return: excitation number (float).
         """
         return self.brain_fp*(1-self.brain_fp)*self.find_Jk(k)/self.T
+
+    # update S
+    def update_S(self, time, time_step, angular_velocity):
+        """
+        Update the value of the intrinsic stimulation S according to a prescribed rule.
+
+        :param time: Current time.
+        :type time: float
+        :param time_step: Time step for numerical integration.
+        :type time_step: float
+        :param angular_velocity: Angular velocity of the animal.
+        :type angular_velocity: float
+
+        :return: None
+        """
+        if self.S_update_rule[0]==1:
+            omega = self.S_update_rule[1]
+            phi0 = np.arccos(2*self.S_init-1)
+            self.S = (1+np.cos(omega*time+phi0))/2
+        elif self.S_update_rule[0]==2:
+            a = self.S_update_rule[1]
+            b = self.S_update_rule[2]
+            S0 = self.S_update_rule[3]
+            self.S = max(integrate.solve_ivp(lambda t, S: a * angular_velocity - b * (S-S0), [0, time_step], [self.S]).y[0][-1], 0)
+            # self.S += (a*angular_velocity-b*self.S)*time_step
+            # print(self.S)
 
 # Contains properties of an individual (behaviour and transitions between them)
 class IndProp:
@@ -389,6 +424,7 @@ class Pattern:
         # create pattern variables
         self.behaviour = np.zeros(self.env_prop.ind_num, dtype=int)        # initially, each individual has the "0" behaviour
         self.nx = np.zeros((self.time_num, self.env_prop.ind_num, self.env_prop.angle_num + 3))
+        self.S_vals = np.zeros((self.env_prop.ind_num,self.time_num))
         self.time = 0
         # create variable for next behaviour switch
         self.next_beh_time = np.zeros(self.env_prop.ind_num)
@@ -454,6 +490,7 @@ class Pattern:
                 self.nx[self.time_num-tim-1][ind][self.env_prop.angle_num] = self.find_ind(ind).init_pos[0]
                 self.nx[self.time_num-tim-1][ind][self.env_prop.angle_num+1] = self.find_ind(ind).init_pos[1]
                 self.nx[self.time_num-tim-1][ind][self.env_prop.angle_num+2] = self.find_ind(ind).init_head
+                self.S_vals[ind][self.time_num-tim-1] = self.find_ind(ind).S_init
 
     ###
     # Measurements
@@ -535,6 +572,30 @@ class Pattern:
             if d < w:
                 d = w
             kappa = (np.pi/np.arcsin(w/d)-1/np.pi)/2
+        elif cue[0] == 4:
+            if self.nx[self.pt_tau[ind]][ind][self.env_prop.angle_num]<cue[5]:
+                x = cue[4]
+                y = 0
+                dx = x - self.nx[self.pt_tau[ind]][ind][self.env_prop.angle_num]  # x distance from stimulus
+                dy = y - self.nx[self.pt_tau[ind]][ind][self.env_prop.angle_num + 1]  # y distance from stimulus
+                theta_c = np.arctan2(dy, dx)  # angle from stimulus
+                d = np.sqrt(dx**2+dy**2)
+                w = cue[2]
+                if d < w:
+                    d = w
+                kappa = (np.pi/np.arcsin(w/d)-1/np.pi)/2
+            else:
+                x = cue[5]
+                y = cue[6]
+                dx = x - self.nx[self.pt_tau[ind]][ind][self.env_prop.angle_num]  # x distance from stimulus
+                dy = y - self.nx[self.pt_tau[ind]][ind][self.env_prop.angle_num + 1]  # y distance from stimulus
+                theta_c = np.arctan2(dy, dx)  # angle from stimulus
+                d = np.sqrt(dx ** 2 + dy ** 2)
+                w = cue[2]
+                if d < w:
+                    d = w
+                kappa = (np.pi / np.arcsin(w / d) - 1 / np.pi) / 2
+
         return theta_c, kappa
 
     # compute contribution to v equation due to stimulation I
@@ -554,7 +615,13 @@ class Pattern:
         inh_cue = 1    # stimulation coming from the cues
         for cue in self.find_ind(ind).cue:  # add each cue
             theta_c,kappa = self.find_theta_c_kappa(ind, cue)  # angle of the cue
-            inh_cue *= 1-cue[3]*np.exp(kappa*(np.cos(theta-theta_c)-1))
+            if cue[0] == 4:
+                if cue[8]<cue[7]:
+                    inh_cue *= 1 - cue[3] * np.exp(kappa * (np.cos(theta - theta_c) - 1))
+                else:
+                    inh_cue = 0
+            else:
+                inh_cue *= 1-cue[3]*np.exp(kappa*(np.cos(theta-theta_c)-1))
         if len(self.find_ind(ind).cue)>0:
             stim -= inh_cue
         return stim
@@ -768,6 +835,16 @@ class Pattern:
             nx_new[pt_new][ind][self.env_prop.angle_num] = self.nx[self.pt_now][ind][self.env_prop.angle_num] + force_x
             nx_new[pt_new][ind][self.env_prop.angle_num+1] = self.nx[self.pt_now][ind][self.env_prop.angle_num+1] + force_y
             nx_new[pt_new][ind][self.env_prop.angle_num+2] = self.nx[self.pt_now][ind][self.env_prop.angle_num+2] + force_phi
+            # update stimulation strength of the individual - use the fact that force_phi is the angular velocity*time_step
+            self.find_ind(ind).update_S(self.time,self.env_prop.time_step,force_phi/self.env_prop.time_step)
+            self.S_vals[ind][pt_new] = self.find_ind(ind).S
+            # update cue if time dependent
+            for cue in self.find_ind(ind).cue:
+                if cue[0] == 4:
+                    if self.nx[self.pt_now][ind][self.env_prop.angle_num]>=cue[5]:
+                        if cue[8] == 0:
+                            cue[9] = self.time
+                        cue[8] += self.env_prop.time_step # update time of the "ticking bomb" - i.e. when cue disappears
         self.nx = nx_new
         # update pointers
         self.pt_now = (self.pt_now + 1) % self.time_num
@@ -795,11 +872,14 @@ class Pattern:
     ###
 
     # behaviour switch
-    def get_behaviour_switch(self,ind):
+    def get_behaviour_switch(self,ind,S_crit=0.16):
         """
         Find the times and behaviours at which the behaviour switches.
         Focus on times between (floor(t_max/t_step)-t_num+1)*t_step and floor(t_max/t_step)*t_step and include the endpoints even if there is no switch.
         Run 'simulate' method first before applying this function.
+        Note that for S_update_rule[0]=0 (i.e. S unchanged), the behaviour switches are identified.
+        However, if S_update_rule[0]!=0 (i.e. S changes), it is assumed that the individual consists of a single
+        behaviour object and instead the behaviours are identified based on the value of S being above S_crit (0) or below S_crit (1).
 
         :return: switch_times (list), switch_t_index (list), switch_behaviour (list)
         """
@@ -809,20 +889,48 @@ class Pattern:
         # trim the beh_seq to include only times between these bounds (inclusive)
         beh_seq = []
         init_beh = 0
-        for beh in self.beh_seq[ind]:
-            if beh[0]>=t_min:
-                if beh[0]<t_max:
-                    beh_seq.append(beh)
-            else:
-                init_beh = beh[1]
-        # add the endpoints
-        if len(beh_seq)==0:
+        # blinking cue (transition from decision-making to search)
+        if len(self.find_ind(ind).cue) > 0 and self.find_ind(ind).cue[0][0] == 4:
+            beh_seq.append([t_min, 0])
+            beh_seq.append([self.find_ind(ind).cue[0][9] + self.find_ind(ind).cue[0][7], 1])
+            beh_seq.append([t_max + self.env_prop.time_step, 1])
+        # stochastic transitions
+        elif self.find_ind(ind).S_update_rule[0]==0:
+            for beh in self.beh_seq[ind]:
+                if beh[0]>=t_min:
+                    if beh[0]<t_max:
+                        beh_seq.append(beh)
+                else:
+                    init_beh = beh[1]
+            # add the endpoints
+            if len(beh_seq)==0:
+                beh_seq.append([t_min, init_beh])
+            elif beh_seq[0][0]!=t_min:
+                beh_seq.insert(0,[t_min, init_beh])
+            # add the endpoints
+            beh_seq[0] = [t_min,beh_seq[0][1]]
+            beh_seq.append([t_max+self.env_prop.time_step,beh_seq[-1][1]])
+        # transitions due to variable S
+        else:
+            # get s values and times
+            times, s_vals = self.get_S_trajectory(ind)
+            mask = (times >= t_min) & (times <= t_max)
+            times = times[mask]
+            s_vals = s_vals[mask]
+            # get the first and final behaviour
+            final_beh = 0
+            if s_vals[0]<S_crit:
+                init_beh = 1
+            if s_vals[-1]>S_crit:
+                final_beh = 1
+            # create the beh_seq
             beh_seq.append([t_min, init_beh])
-        elif beh_seq[0][0]!=t_min:
-            beh_seq.insert(0,[t_min, init_beh])
-        # add the endpoints
-        beh_seq[0] = [t_min,beh_seq[0][1]]
-        beh_seq.append([t_max+self.env_prop.time_step,beh_seq[-1][1]])
+            for i in range(len(times)):
+                if s_vals[i]<S_crit and beh_seq[-1][1]==0:
+                    beh_seq.append([times[i], 1])
+                if s_vals[i]>S_crit and beh_seq[-1][1]==1:
+                    beh_seq.append([times[i], 0])
+            beh_seq.append([t_max+self.env_prop.time_step, final_beh])
         # get the output variables
         switch_times = [beh[0] for beh in beh_seq] # times at which the behaviour switches
         switch_t_index = [int(np.ceil((beh[0]-t_min)/self.env_prop.time_step)) for beh in beh_seq] # first time index that has been updated with the new behaviour
@@ -907,10 +1015,29 @@ class Pattern:
         # return the trajectory
         return times, thetas, traj
 
+    # S trajectory
+    def get_S_trajectory(self, ind):
+        """
+        Find the trajectory of the intrinsic stimulation S over time.
+        Run 'simulate' method first before applying this function.
+
+        :param ind: Index of the individual.
+        :type ind: int
+
+        :return: times (np.ndarray), s_vals (np.ndarray)
+        """
+        # get times
+        t_max = np.floor(self.env_prop.time_max / self.env_prop.time_step) * self.env_prop.time_step
+        t_min = t_max - (self.time_num - 1) * self.env_prop.time_step
+        times = np.linspace(t_min, t_max, self.time_num)
+        # get headings
+        s_vals = np.roll(self.S_vals[ind], -self.pt_now - 1)
+        return times, s_vals
+
     # get distance to a nearest cue of type 0
     def get_cue_distance(self, ind):
         """
-        Get the distance to the nearest cue of type 0.
+        Get the distance to the nearest cue of type 0 or 3.
         Run 'simulate' method first before applying this function.
 
         :param ind: Index of the individual.
@@ -920,9 +1047,10 @@ class Pattern:
         x = self.nx[self.pt_now, ind, self.env_prop.angle_num]
         y = self.nx[self.pt_now,ind,self.env_prop.angle_num+1]
         distance = np.inf
-        for cue in self.find_ind(ind).cue:
-            if cue[0]==0 or cue[0]==3:
-                distance = np.min([distance, np.sqrt((cue[4]-x)**2+(cue[5]-y)**2)])
+        for beh in self.ind_prop[ind].beh:
+            for cue in beh.cue:
+                if cue[0]==0 or cue[0]==3:
+                    distance = np.min([distance, np.sqrt((cue[4]-x)**2+(cue[5]-y)**2)])
         return distance
 
     # get minimal distance across all individuals
@@ -1174,17 +1302,27 @@ def snapshot_move(pattern, heading, trajectory, labels, ax,  adjusted_plane=True
     # plot positions of each individual and its trajectory
     for ind in range(pattern.env_prop.ind_num):
         # stimuli
-        for cue in pattern.find_ind(ind).cue:
-            if cue[0] == 0:
-                x,y = cue[4],cue[5]
-                radius = 2
-                circle = patches.Circle((x, y), radius, color="#c83737ff")  # (center_x, center_y), radius
-                ax.add_patch(circle)
-            elif cue[0] == 3:
-                x,y = cue[4],cue[5]
-                radius = cue[2]
-                circle = patches.Circle((x, y), radius, color="#c83737ff")  # (center_x, center_y), radius
-                ax.add_patch(circle)
+        for beh in pattern.ind_prop[ind].beh:
+            for cue in beh.cue:
+                if cue[0] == 0:
+                    x,y = cue[4],cue[5]
+                    radius = 2
+                    circle = patches.Circle((x, y), radius, color="#c83737ff")  # (center_x, center_y), radius
+                    ax.add_patch(circle)
+                elif cue[0] == 3:
+                    x,y = cue[4],cue[5]
+                    radius = cue[2]
+                    circle = patches.Circle((x, y), radius, color="#c83737ff")  # (center_x, center_y), radius
+                    ax.add_patch(circle)
+                elif cue[0] == 4:
+                    x, y = cue[4], 0
+                    radius = cue[2]
+                    circle = patches.Circle((x, y), radius, color="#c83737ff")  # (center_x, center_y), radius
+                    ax.add_patch(circle)
+                    x, y = cue[5], cue[6]
+                    radius = cue[2]
+                    circle = patches.Circle((x, y), radius, color="#c83737ff")  # (center_x, center_y), radius
+                    ax.add_patch(circle)
         # position
         x = pattern.nx[pattern.pt_now][ind][pattern.env_prop.angle_num]
         y = pattern.nx[pattern.pt_now][ind][pattern.env_prop.angle_num+1]
@@ -1223,15 +1361,15 @@ def snapshot_move(pattern, heading, trajectory, labels, ax,  adjusted_plane=True
     else:
         ax.set_xlim([0, pattern.env_prop.pos_max[0]])
         ax.set_ylim([0, pattern.env_prop.pos_max[1]])
-        ax.set_yticks([])
-        ax.set_xticks([])
+        # ax.set_yticks([])
+        # ax.set_xticks([])
     # labels
     if labels:
         ax.set_xlabel("space $x$")
         ax.set_ylabel("space $y$")
 
 # Plot a snapshot of brain trajectory
-def snapshot_brain_traj(pattern, ind, beh_cmap, labels, ax, allocentric=True):
+def snapshot_brain_traj(pattern, ind, beh_cmap, labels, ax, allocentric=True, S_crit=0.16, plot_S=False):
     """
     Plots the trajectory of brain activity for a given individual over a given period, segmented by periods of
     identical behavior, and visualized with color mapping based on behavior.
@@ -1248,6 +1386,10 @@ def snapshot_brain_traj(pattern, ind, beh_cmap, labels, ax, allocentric=True):
     :type ax: matplotlib.axes.Axes
     :param allocentric: Determines whether the neural activity is shown in the allocentric (default, allocentric=True) or egocentric (allocentric=False) coordinates.
     :type allocentric: bool
+    :param S_crit: The threshold value for the intrinsic stimulation to distinguish between systematic and random search in simulations with variable S.
+    :type S_crit: float
+    :param plot_S: Flag indicating whether the intrinsic stimulation value should be plotted on the trajectory plot.
+    :type plot_S: bool
     """
     # get trajectory of brain between t_max-t_memory and t_max
     times, thetas, traj = pattern.get_brain_trajectory(ind,allocentric)
@@ -1255,7 +1397,7 @@ def snapshot_brain_traj(pattern, ind, beh_cmap, labels, ax, allocentric=True):
     traj = np.roll(traj, -pattern.env_prop.angle_num//2, axis=1)
     thetas= np.asarray([-np.pi]+[-np.pi+(1+2*k)*np.pi/pattern.env_prop.angle_num for k in range(pattern.env_prop.angle_num)]+[np.pi])
     # cut trajectory to intervals of identical behaviour + plot these trajectories with appropriate colour
-    switch_times, switch_t_index, switch_behaviour = pattern.get_behaviour_switch(ind)
+    switch_times, switch_t_index, switch_behaviour = pattern.get_behaviour_switch(ind, S_crit)
     for i in range(len(switch_t_index)-1):
         tim_i_min = switch_t_index[i]
         tim_i_max = switch_t_index[i+1]
@@ -1274,6 +1416,13 @@ def snapshot_brain_traj(pattern, ind, beh_cmap, labels, ax, allocentric=True):
     if labels:
         ax.set_xlabel("time t")
         ax.set_ylabel("angle $\\theta$")
+    # plot S
+    if plot_S:
+        ax_s = ax.twinx()
+        times, s_vals = pattern.get_S_trajectory(ind)
+        ax_s.plot(times, s_vals, color="black", linewidth=1)
+        ax_s.set_ylim(-0.1,1.1)
+        ax_s.set_ylabel("stimulation $S$")
 
 # Plot statistics of an animal trajectory
 def statistics_move(pattern, ind, t_lag_max, labels, ax):
@@ -1326,7 +1475,7 @@ def statistics_move(pattern, ind, t_lag_max, labels, ax):
         ax[1].set_ylabel("autocorrelation")
 
 # Plot a snapshot of brain and movement trajectories
-def snapshot_trajectory(env_prop, ind_prop, beh_cmap, fig_name, labels, seed, deterministic, allocentric=True, adjusted_plane=True, ticks=True, stat_t_lag=None):
+def snapshot_trajectory(env_prop, ind_prop, beh_cmap, fig_name, labels, seed, deterministic, allocentric=True, adjusted_plane=True, ticks=True, stat_t_lag=None, S_crit=0.16, plot_S=False):
     """
     Simulates a trajectory snapshot of an environment with specified properties,
     and generates a detailed figure depicting both the movement within the
@@ -1352,6 +1501,14 @@ def snapshot_trajectory(env_prop, ind_prop, beh_cmap, fig_name, labels, seed, de
     :param adjusted_plane: Adjusts the visualization plane for movement plotting.
         Defaults to True.
     :type adjusted_plane: bool
+    :param ticks: Determines whether axis ticks are to be plotted. Defaults to True.
+    :type ticks: bool
+    :param stat_t_lag: Determines the length of time lag for the plotted statistics. Defaults to None.
+    :type stat_t_lag: float or None
+    :param S_crit: The threshold value for the intrinsic stimulation to distinguish between systematic and random search in simulations with variable S.
+    :type S_crit: float
+    :param plot_S: Flag indicating whether the intrinsic stimulation value should be plotted on the trajectory plot.
+    :type plot_S: bool
     """
 
     # create a simulation and save its properties
@@ -1361,7 +1518,7 @@ def snapshot_trajectory(env_prop, ind_prop, beh_cmap, fig_name, labels, seed, de
     pattern.save_properties("Figures//Metadata//",fig_name)
     # create figure
     cell_size = 2.5
-    fig = plt.figure(figsize=(cell_size, cell_size*(1+pattern.env_prop.ind_num/2)), layout="constrained")
+    fig = plt.figure(figsize=(cell_size*(0.15*plot_S+1), cell_size*(1+pattern.env_prop.ind_num/2)), layout="constrained")
     # crate axes
     gs = fig.add_gridspec(2+pattern.env_prop.ind_num, 1)
     ax_move = fig.add_subplot(gs[pattern.env_prop.ind_num:])
@@ -1373,7 +1530,7 @@ def snapshot_trajectory(env_prop, ind_prop, beh_cmap, fig_name, labels, seed, de
     snapshot_move(pattern, False, True, labels, ax_move, adjusted_plane)
     # plot the brains
     for ind in range(pattern.env_prop.ind_num):
-        snapshot_brain_traj(pattern, ind, beh_cmap, labels, ax_brain[ind], allocentric)
+        snapshot_brain_traj(pattern, ind, beh_cmap, labels, ax_brain[ind], allocentric, S_crit, plot_S)
     # remove ticks if necessary
     if not ticks:
         ax_move.set_xticklabels([])
@@ -1550,7 +1707,11 @@ def snapshot_targets(env_prop, ind_prop, beh_cmap, fig_name, labels, seed, deter
             # create a simulation
             pattern = Pattern(env_prop, ind_prop)
             # do the simulation
+            percentage = 0
             while pattern.time <= pattern.env_prop.time_max and pattern.get_minimal_cue_distance() > 2:
+                if pattern.time >= percentage * pattern.env_prop.time_max / 100:
+                    print("Simulation finished at least up to" + str(percentage) + "%")
+                    percentage += 1
                 pattern.update_pattern(deterministic)
             # do the plots
             for ind in range(pattern.env_prop.ind_num):
