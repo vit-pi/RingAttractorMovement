@@ -7,7 +7,7 @@ import BrainMove as bm
 # SIMULATION
 ###
 # Parameter to determine the figure panel: Fig. 3A,C = False, Fig. 13B = False, Fig. S6A,C = True
-deterministic = False
+deterministic = True
 
 # Parameters of simulation
 fig_name = "TrajSponLine_Ego"

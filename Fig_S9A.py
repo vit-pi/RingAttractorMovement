@@ -18,7 +18,7 @@ fig,axs = plt.subplots(nrows=4,figsize=(0.9*cell_size, cell_size), layout="const
 # COLORBARS
 ###
 # Define the colormap and normalization
-yellows = LinearSegmentedColormap.from_list("Yellows", [(1,1,0.8), (0.8, 0.6, 0)])
+yellows = LinearSegmentedColormap.from_list("Yellows", [(0.0,(1,1,0.8)), (0.2,(0.8, 0.6, 0)),(1.0,(0.4, 0.3, 0.00))])
 cmaps = [plt.get_cmap('Blues'),plt.get_cmap('Reds'),yellows,plt.get_cmap('Greys')]
 norm = mcolors.Normalize(vmin=0, vmax=1)
 # Create a ScalarMappable object for the colorbar

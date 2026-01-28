@@ -9,7 +9,7 @@ from matplotlib.colors import LinearSegmentedColormap
 # SIMULATION
 ###
 # Parameter to determine the figure panel: Fig. 3M,O = False, Fig. 13J = False, Fig. S8D,F = False, Fig. S7L,N = True
-deterministic = False
+deterministic = True
 
 # Parameters of simulation
 fig_name = "TrajSponDownBump_Ego"
@@ -25,7 +25,7 @@ else:
     seed = 2
 ind_prop = [bm.IndProp(beh_prop)]
 # Create a colormap
-yellows = LinearSegmentedColormap.from_list("Yellows", [(1,1,0.8), (0.8, 0.6, 0)])
+yellows = LinearSegmentedColormap.from_list("Yellows", [(0.0,(1,1,0.8)), (0.2,(0.8, 0.6, 0)),(1.0,(0.4, 0.3, 0.00))])
 # Run the simulation
 bm.snapshot_trajectory(env_prop,ind_prop,[yellows],fig_name,True,seed,deterministic,allocentric=False,ticks=False,stat_t_lag=3)
 

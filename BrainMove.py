@@ -13,6 +13,8 @@ import os
 import pandas as pd
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.colors import ListedColormap
+from matplotlib.collections import LineCollection
+from numpy.ma.core import remainder
 
 
 ###
@@ -50,6 +52,7 @@ class BehProp:
                 3 - Fixed spatially extended cue; position defined by [pos_x, pos_y].
                     Note that instead of 'kappa' at index 2, this element encodes the radius of the cue.
                 4 - a cue at [pos_x0, 0] is presented until the animal reaches x>=pos_x1, at which point a cue [pos_x1,pos_y] is presented for time `t_blink`, after which the cue disappears completely. So, position defined by: pos_x0, pos_x1, pos_y, t_blink, t_pass, t_set: where t_pass and t_set must be set to 0, t_pass start counting time after passing through pos_x0 and t_set remembers the crossing time.
+                5 - Fixed spatially extended cue that switches on and off stochastically at a fixed rate; cue variables [pos_x, pos_y, rate, on=True, next_time=0]: on=True means the cue is on at the start, next_time is the time when the cue is switched on/off -> next times are appended to the list
         :type cue: Union(None,list)
 
         :param T: Neural noise.
@@ -101,6 +104,11 @@ class BehProp:
             - type=0: no updating
             - type=1: periodic update of S with frequency `omega` (float, param0)
             - type=2: feedback update of S: increase at rate `a` (flota, param0) per angular frequency of animal rotation, decay at rate `b` (float, param1)
+            - type=3: periodically switch between two values of S: `S0` (float, param0) and `S1` (float, param1); S0 starts and is kept for time t0 (float, param2) and S1 is kept for time t1 (float, param3)
+            - type=4: aperiodically switch between two values of S: `S0` (float, param0) and `S1` (float, param1); S0 starts and is kept for time n*t0 where n is the repeat number (float, param2) and S1 is kept for time t1 (float, param3)
+            - type=5: continuous change from `S0` (float, param0) at time 0 to `S1` (float, param1) at time time_max
+            - type=6: follow the equation: S0/(1+np.exp(A*(time-B))) where the parameters are `S0` (float, param0), `A` (float, param1), `B` (float, param2)
+            - type=7: stays at `S` (float, param2) until time `t` (float, param3), then continuous change from `S0` (float, param0) to `S1` (float, param1) at time time_max
         :type S_update_rule: list
         Attributes:
         - variables with names identical to the input parameters.
@@ -228,7 +236,7 @@ class BehProp:
         return self.brain_fp*(1-self.brain_fp)*self.find_Jk(k)/self.T
 
     # update S
-    def update_S(self, time, time_step, angular_velocity):
+    def update_S(self, time, time_step, angular_velocity, time_max):
         """
         Update the value of the intrinsic stimulation S according to a prescribed rule.
 
@@ -252,6 +260,36 @@ class BehProp:
             self.S = max(integrate.solve_ivp(lambda t, S: a * angular_velocity - b * (S-S0), [0, time_step], [self.S]).y[0][-1], 0)
             # self.S += (a*angular_velocity-b*self.S)*time_step
             # print(self.S)
+        elif self.S_update_rule[0]==3:
+            remainder = time % (self.S_update_rule[4]+self.S_update_rule[3])
+            if remainder < self.S_update_rule[3]:
+                self.S = self.S_update_rule[1]
+            else:
+                self.S = self.S_update_rule[2]
+        elif self.S_update_rule[0]==4:
+            t1 = self.S_update_rule[3]
+            t2 = self.S_update_rule[4]
+            t = time
+            n = np.ceil((-(t2 + t1 / 2) + ((t2 + t1 / 2) ** 2 + 2 * t1 * t) ** 0.5) / t1)-1
+            remainder = t - n*t2 - n*(n+1)/2*t1
+            if remainder <  (n+1)*t1:
+                self.S = self.S_update_rule[1]
+            else:
+                self.S = self.S_update_rule[2]
+        elif self.S_update_rule[0] == 5:
+            self.S = (time/time_max)**0.5*self.S_update_rule[2]+(1-(time/time_max)**0.5)*self.S_update_rule[1]
+        elif self.S_update_rule[0] == 6:
+            S0 = self.S_update_rule[1]
+            A = self.S_update_rule[2]
+            B = self.S_update_rule[3]
+            self.S = S0 / (1 + np.exp(A * (time - B)))
+        elif self.S_update_rule[0] == 7:
+            if time < self.S_update_rule[4]:
+                self.S = self.S_update_rule[3]
+            else:
+                self.S = (time/(time_max-self.S_update_rule[4]))**0.5*self.S_update_rule[2]+(1-((time-self.S_update_rule[4])/(time_max-self.S_update_rule[4]))**0.5)*self.S_update_rule[1]
+
+
 
 # Contains properties of an individual (behaviour and transitions between them)
 class IndProp:
@@ -561,7 +599,7 @@ class Pattern:
             theta_c = np.arctan2(dy, dx)  # angle from stimulus
         elif cue[0] == 2:  # stimulus at a fixed angle
             theta_c = cue[4]
-        elif cue[0] == 3:  # fixed spatially extended stimulus
+        elif cue[0] == 3 or cue[0] == 5:  # fixed spatially extended stimulus
             x = cue[4]
             y = cue[5]
             dx = x - self.nx[self.pt_tau[ind]][ind][self.env_prop.angle_num]  # x distance from stimulus
@@ -613,6 +651,8 @@ class Pattern:
         theta = 2 * np.pi * ang / self.env_prop.angle_num   # get chosen angle in radians
         stim = 1        # default stimulation probability
         inh_cue = 1    # stimulation coming from the cues
+        cue_off = True   # track if all cues of type 5 are off
+        cue_all_5 = True # track if all cues are of type 5
         for cue in self.find_ind(ind).cue:  # add each cue
             theta_c,kappa = self.find_theta_c_kappa(ind, cue)  # angle of the cue
             if cue[0] == 4:
@@ -620,8 +660,16 @@ class Pattern:
                     inh_cue *= 1 - cue[3] * np.exp(kappa * (np.cos(theta - theta_c) - 1))
                 else:
                     inh_cue = 0
+            elif cue[0] == 5:
+                if cue[7]:
+                    cue_off = False
+                inh_cue *= 1 - cue[3] * cue[7] * np.exp(kappa * (np.cos(theta - theta_c) - 1))
             else:
                 inh_cue *= 1-cue[3]*np.exp(kappa*(np.cos(theta-theta_c)-1))
+            if cue[0] != 5:
+                cue_all_5 = False
+        if cue_all_5 and cue_off:
+            inh_cue = 0
         if len(self.find_ind(ind).cue)>0:
             stim -= inh_cue
         return stim
@@ -758,7 +806,7 @@ class Pattern:
         """
         for cue in self.find_ind(ind).cue: # look at each cue
             if cue[1]:          # see if it is randomly updated
-                if cue[0]==0:     # fixed allocentric position
+                if cue[0]==0 or cue[0] == 3 or cue[0] == 5:     # fixed allocentric position
                     cue[5] = np.random.uniform(0,self.env_prop.pos_max[0])
                     cue[6] = np.random.uniform(0,self.env_prop.pos_max[1])
                 elif cue[0]==1:   # fixed individual
@@ -836,7 +884,7 @@ class Pattern:
             nx_new[pt_new][ind][self.env_prop.angle_num+1] = self.nx[self.pt_now][ind][self.env_prop.angle_num+1] + force_y
             nx_new[pt_new][ind][self.env_prop.angle_num+2] = self.nx[self.pt_now][ind][self.env_prop.angle_num+2] + force_phi
             # update stimulation strength of the individual - use the fact that force_phi is the angular velocity*time_step
-            self.find_ind(ind).update_S(self.time,self.env_prop.time_step,force_phi/self.env_prop.time_step)
+            self.find_ind(ind).update_S(self.time,self.env_prop.time_step,force_phi/self.env_prop.time_step,self.env_prop.time_max)
             self.S_vals[ind][pt_new] = self.find_ind(ind).S
             # update cue if time dependent
             for cue in self.find_ind(ind).cue:
@@ -845,6 +893,11 @@ class Pattern:
                         if cue[8] == 0:
                             cue[9] = self.time
                         cue[8] += self.env_prop.time_step # update time of the "ticking bomb" - i.e. when cue disappears
+                elif cue[0] == 5:
+                    if self.time > cue[-1]:
+                        cue[7] = not cue[7]
+                        next_time = cue[-1] -np.log(np.random.uniform())/cue[6]
+                        cue.append(next_time)
         self.nx = nx_new
         # update pointers
         self.pt_now = (self.pt_now + 1) % self.time_num
@@ -889,10 +942,36 @@ class Pattern:
         # trim the beh_seq to include only times between these bounds (inclusive)
         beh_seq = []
         init_beh = 0
-        # blinking cue (transition from decision-making to search)
+        # once-blinking cue (transition from decision-making to search)
         if len(self.find_ind(ind).cue) > 0 and self.find_ind(ind).cue[0][0] == 4:
             beh_seq.append([t_min, 0])
             beh_seq.append([self.find_ind(ind).cue[0][9] + self.find_ind(ind).cue[0][7], 1])
+            beh_seq.append([t_max + self.env_prop.time_step, 1])
+        # stochastically blinking cues (assumes all cues are of type 5 - identifies times when both cues are off)
+        if len(self.find_ind(ind).cue) > 0 and self.find_ind(ind).cue[0][0] == 5:
+            cue_seq = []
+            for cue in self.find_ind(ind).cue:
+                sequence = cue[8:-1]
+                cue_seq.append(sequence)
+             # Collect all events with cue index for tracking individual cues
+            events = []
+            for cue_index in range(len(cue_seq)):
+                for time_index in range(len(cue_seq[cue_index])):
+                    time = cue_seq[cue_index][time_index]
+                    state = 1-time_index % 2  # on is 1, off is 0
+                    events.append((time, cue_index, state))
+            events.sort(key=lambda x: x[0])  # Sort events by time
+            # Track the on/off state of all cues
+            beh_seq.append([0,1]) # decision-making is 1, search is 0
+            active_states = [0] * len(cue_seq)  # Keep track of each cue's state
+            for time, cue_index, state in events:
+                # Update the state of the specific cue
+                active_states[cue_index] = state
+                # Determine if at least one cue is active = decision-making
+                is_active = int(any(active_states))
+                # Append to beh_seq only if the overall state changes
+                if beh_seq[-1][1] != is_active:
+                    beh_seq.append([time, is_active])
             beh_seq.append([t_max + self.env_prop.time_step, 1])
         # stochastic transitions
         elif self.find_ind(ind).S_update_rule[0]==0:
@@ -1049,7 +1128,7 @@ class Pattern:
         distance = np.inf
         for beh in self.ind_prop[ind].beh:
             for cue in beh.cue:
-                if cue[0]==0 or cue[0]==3:
+                if cue[0]==0 or cue[0]==3 or (cue[0]==5 and cue[7] is True):
                     distance = np.min([distance, np.sqrt((cue[4]-x)**2+(cue[5]-y)**2)])
         return distance
 
@@ -1259,7 +1338,7 @@ def snapshot_brain(pattern, ind, heading, ax, **kwargs):
     return cm
 
 # Plot a snapshot of animal position and trajectory
-def snapshot_move(pattern, heading, trajectory, labels, ax,  adjusted_plane=True):
+def snapshot_move(pattern, heading, trajectory, labels, ax,  adjusted_plane=True, S_crit=0.16, beh_colors=None, gradient=False):
     """
     Generates a visualization movement for all individuals in the 'pattern' object.
     In addition to the current individual and cue positions, heading direction vectors and trajectories can be plotted.
@@ -1281,6 +1360,12 @@ def snapshot_move(pattern, heading, trajectory, labels, ax,  adjusted_plane=True
     :type labels: bool
     :param ax: A Matplotlib Axes object used to plot the environment, individuals, and trajectories.
     :type ax: matplotlib.axes.Axes
+    :param beh_colors: A list of lists of color for each individual and its behaviours. If None is specified, entire trajectories plotted in black.
+    :type beh_colors: list[list]
+    :param S_crit: The minimum value of S for a cue to be considered active.
+    :type S_crit: float
+    :param gradient: A boolean indicating whether to plot the trajectory in a gradient colour scheme.
+    :type gradient: bool
 
     :return: None
     """
@@ -1293,7 +1378,7 @@ def snapshot_move(pattern, heading, trajectory, labels, ax,  adjusted_plane=True
         for ind in range(pattern.env_prop.ind_num):
             for beh in pattern.ind_prop[ind].beh:
                 for cue in beh.cue:
-                    if cue[0] == 0 or cue[0] == 3:
+                    if cue[0] == 0 or cue[0] == 3 or cue[0] == 5:
                         for xy in range(2):
                             if cue[4+xy]>max_pt[xy]:
                                 max_pt[xy] = cue[4+xy]
@@ -1309,7 +1394,7 @@ def snapshot_move(pattern, heading, trajectory, labels, ax,  adjusted_plane=True
                     radius = 2
                     circle = patches.Circle((x, y), radius, color="#c83737ff")  # (center_x, center_y), radius
                     ax.add_patch(circle)
-                elif cue[0] == 3:
+                elif cue[0] == 3 or cue[0] == 5:
                     x,y = cue[4],cue[5]
                     radius = cue[2]
                     circle = patches.Circle((x, y), radius, color="#c83737ff")  # (center_x, center_y), radius
@@ -1339,7 +1424,6 @@ def snapshot_move(pattern, heading, trajectory, labels, ax,  adjusted_plane=True
         if trajectory:
             traj_x = np.roll(pattern.nx[:, ind, pattern.env_prop.angle_num], -pattern.pt_now-1)
             traj_y = np.roll(pattern.nx[:, ind, pattern.env_prop.angle_num+1], -pattern.pt_now-1)
-            ax.plot(traj_x, traj_y, color=ind_colors[ind], linewidth=0.7)
             if traj_x.min()<min_pt[0]:
                 min_pt[0] = traj_x.min()
             if traj_x.max() > max_pt[0]:
@@ -1348,6 +1432,39 @@ def snapshot_move(pattern, heading, trajectory, labels, ax,  adjusted_plane=True
                 min_pt[1] = traj_y.min()
             if traj_y.max() > max_pt[1]:
                 max_pt[1] = traj_y.max()
+            if gradient:
+                # Reduce data to 1000 regularly spaced segments
+                num_segments = 1000  # Target number of segments
+                indices = np.linspace(0, len(traj_x) - 1, num_segments + 1, dtype=int)  # Create indices
+                subsampled_x = traj_x[indices]
+                subsampled_y = traj_y[indices]
+
+                # Prepare data for LineCollection
+                points = np.array([subsampled_x, subsampled_y]).T.reshape(-1, 1, 2)
+                segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+                # Create a gradient color map
+                cmap = plt.get_cmap('plasma')  # Shades from black to white
+                cmap = LinearSegmentedColormap.from_list("BlueYellow", [(0.0,(0.031,0.239,0.494)),(1.0,(0.827, 0.659, 0.118))])
+                norm = plt.Normalize(vmin=0, vmax=1)  # Map within black to 30% gray
+                colors = np.linspace(0, 1, num_segments)  # Gradient values from black to 30% gray
+
+                # Create LineCollection and add to the axis
+                lc = LineCollection(segments, cmap=cmap, norm=norm)
+                lc.set_array(colors)  # Attach your gradient values
+                lc.set_linewidth(0.7)
+                ax.add_collection(lc)
+            else:
+                if beh_colors is None:
+                    ax.plot(traj_x, traj_y, color=ind_colors[ind], linewidth=0.7)
+                else:
+                    switch_times, switch_t_index, switch_behaviour = pattern.get_behaviour_switch(ind, S_crit)
+                    for i in range(len(switch_t_index)-1):
+                        tim_i_min = switch_t_index[i]
+                        tim_i_max = switch_t_index[i+1]
+                        plot_x = traj_x[tim_i_min:tim_i_max]
+                        plot_y = traj_y[tim_i_min:tim_i_max]
+                        ax.plot(plot_x, plot_y, color=beh_colors[ind][switch_behaviour[i]], linewidth=0.7)
     # set limits and ticks
     if adjusted_plane:
         length = np.ceil(max(max_pt[0]-min_pt[0],max_pt[1]-min_pt[1])*1.4/10) * 10
@@ -1369,7 +1486,7 @@ def snapshot_move(pattern, heading, trajectory, labels, ax,  adjusted_plane=True
         ax.set_ylabel("space $y$")
 
 # Plot a snapshot of brain trajectory
-def snapshot_brain_traj(pattern, ind, beh_cmap, labels, ax, allocentric=True, S_crit=0.16, plot_S=False):
+def snapshot_brain_traj(pattern, ind, beh_cmap, labels, ax, allocentric=True, S_crit=0.16, plot_S=False, S_lim=None):
     """
     Plots the trajectory of brain activity for a given individual over a given period, segmented by periods of
     identical behavior, and visualized with color mapping based on behavior.
@@ -1390,6 +1507,8 @@ def snapshot_brain_traj(pattern, ind, beh_cmap, labels, ax, allocentric=True, S_
     :type S_crit: float
     :param plot_S: Flag indicating whether the intrinsic stimulation value should be plotted on the trajectory plot.
     :type plot_S: bool
+    :param S_lim: Limits for the intrinsic stimulation value plotted on the trajectory plot. If None, the full range of intrinsic stimulation values is plotted.
+    :type S_lim: tuple[float, float]
     """
     # get trajectory of brain between t_max-t_memory and t_max
     times, thetas, traj = pattern.get_brain_trajectory(ind,allocentric)
@@ -1421,7 +1540,10 @@ def snapshot_brain_traj(pattern, ind, beh_cmap, labels, ax, allocentric=True, S_
         ax_s = ax.twinx()
         times, s_vals = pattern.get_S_trajectory(ind)
         ax_s.plot(times, s_vals, color="black", linewidth=1)
-        ax_s.set_ylim(-0.1,1.1)
+        if S_lim is None:
+            ax_s.set_ylim(-0.1,1.1)
+        else:
+            ax_s.set_ylim(S_lim)
         ax_s.set_ylabel("stimulation $S$")
 
 # Plot statistics of an animal trajectory
@@ -1475,7 +1597,7 @@ def statistics_move(pattern, ind, t_lag_max, labels, ax):
         ax[1].set_ylabel("autocorrelation")
 
 # Plot a snapshot of brain and movement trajectories
-def snapshot_trajectory(env_prop, ind_prop, beh_cmap, fig_name, labels, seed, deterministic, allocentric=True, adjusted_plane=True, ticks=True, stat_t_lag=None, S_crit=0.16, plot_S=False):
+def snapshot_trajectory(env_prop, ind_prop, beh_cmap, fig_name, labels, seed, deterministic, allocentric=True, adjusted_plane=True, ticks=True, stat_t_lag=None, S_crit=0.16, plot_S=False, beh_colors=None, gradient=False, S_lim=None):
     """
     Simulates a trajectory snapshot of an environment with specified properties,
     and generates a detailed figure depicting both the movement within the
@@ -1509,6 +1631,12 @@ def snapshot_trajectory(env_prop, ind_prop, beh_cmap, fig_name, labels, seed, de
     :type S_crit: float
     :param plot_S: Flag indicating whether the intrinsic stimulation value should be plotted on the trajectory plot.
     :type plot_S: bool
+    :param beh_colors: A list of lists of color for each individual and its behaviours. If None is specified, entire trajectories plotted in black.
+    :type beh_colors: list[list]
+    :param gradient: A boolean indicating whether to plot the trajectory in a gradient colour scheme.
+    :type gradient: bool
+    :param S_lim: Limits for the intrinsic stimulation value plotted on the trajectory plot. If None, the full range of intrinsic stimulation values is plotted.
+    :type S_lim: tuple[float, float]
     """
 
     # create a simulation and save its properties
@@ -1527,10 +1655,10 @@ def snapshot_trajectory(env_prop, ind_prop, beh_cmap, fig_name, labels, seed, de
     pattern.simulate(deterministic)
     # do the plots
     # plot movement
-    snapshot_move(pattern, False, True, labels, ax_move, adjusted_plane)
+    snapshot_move(pattern, False, True, labels, ax_move, adjusted_plane,S_crit,beh_colors,gradient)
     # plot the brains
     for ind in range(pattern.env_prop.ind_num):
-        snapshot_brain_traj(pattern, ind, beh_cmap, labels, ax_brain[ind], allocentric, S_crit, plot_S)
+        snapshot_brain_traj(pattern, ind, beh_cmap, labels, ax_brain[ind], allocentric, S_crit, plot_S,S_lim)
     # remove ticks if necessary
     if not ticks:
         ax_move.set_xticklabels([])
@@ -1571,7 +1699,7 @@ def movie_snapshots(env_prop, ind_prop, plot_time, heading, trajectory, anim_nam
     :param plot_time: Interval of time between simulation snapshots, determining the granularity of captured frames.
     :type plot_time: float
     :param heading: A boolean flag indicating whether to include individual heading vectors in the snapshots.
-    :type heading: str
+    :type heading: bool
     :param trajectory: A boolean flag indicating whether to include individual trajectories in the snapshots.
     :type trajectory: bool
     :param anim_name: The base name of the animation, used for naming the folder where snapshots are stored
@@ -1622,7 +1750,7 @@ def movie_snapshots(env_prop, ind_prop, plot_time, heading, trajectory, anim_nam
     while pattern.time <= pattern.env_prop.time_max:
         if pattern.time >= plot_index*plot_time:
             # snapshot of movement
-            snapshot_move(pattern, heading, trajectory, False, False, ax_move)
+            snapshot_move(pattern, heading, trajectory, False, ax_move, False)
             # snapshot of the brain
             for ind in range(pattern.env_prop.ind_num):
                 cm = snapshot_brain(pattern,ind,True,ax_brain[ind])

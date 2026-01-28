@@ -7,7 +7,7 @@ import BrainMove as bm
 # SIMULATION
 ###
 # Parameter to determine the figure panel: Fig. 3D,E = False, Fig. 13C = False, Fig. S6D,E = True
-deterministic = False
+deterministic = True
 
 # Parameters of simulation
 fig_name = "TrajSponWavy_Allo"

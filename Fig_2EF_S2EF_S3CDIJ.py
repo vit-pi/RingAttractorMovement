@@ -7,7 +7,7 @@ import BrainMove as bm
 # SIMULATION
 ###
 # Parameter to determine the figure panel: Fig. 2E-F = True, Fig. S3C-D = True, Fig. S2E-F = False, Fig. S3I-J = False
-deterministic = False
+deterministic = True
 
 # Parameters of simulation
 fig_name = "Traj3Target_Trace_SpCue"
