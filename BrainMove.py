@@ -948,7 +948,7 @@ class Pattern:
             beh_seq.append([self.find_ind(ind).cue[0][9] + self.find_ind(ind).cue[0][7], 1])
             beh_seq.append([t_max + self.env_prop.time_step, 1])
         # stochastically blinking cues (assumes all cues are of type 5 - identifies times when both cues are off)
-        if len(self.find_ind(ind).cue) > 0 and self.find_ind(ind).cue[0][0] == 5:
+        elif len(self.find_ind(ind).cue) > 0 and self.find_ind(ind).cue[0][0] == 5:
             cue_seq = []
             for cue in self.find_ind(ind).cue:
                 sequence = cue[8:-1]
@@ -1444,7 +1444,6 @@ def snapshot_move(pattern, heading, trajectory, labels, ax,  adjusted_plane=True
                 segments = np.concatenate([points[:-1], points[1:]], axis=1)
 
                 # Create a gradient color map
-                cmap = plt.get_cmap('plasma')  # Shades from black to white
                 cmap = LinearSegmentedColormap.from_list("BlueYellow", [(0.0,(0.031,0.239,0.494)),(1.0,(0.827, 0.659, 0.118))])
                 norm = plt.Normalize(vmin=0, vmax=1)  # Map within black to 30% gray
                 colors = np.linspace(0, 1, num_segments)  # Gradient values from black to 30% gray

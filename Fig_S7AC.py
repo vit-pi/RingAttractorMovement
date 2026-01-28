@@ -9,7 +9,7 @@ from matplotlib.colors import LinearSegmentedColormap
 # SIMULATION
 ###
 # Parameters of simulation
-deterministic = True
+deterministic = False
 fig_name = "TrajSponInh_Ego"
 if deterministic:
     env_prop = bm.EnvProp(time_max=500, time_memory=500)
