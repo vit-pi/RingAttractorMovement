@@ -1,0 +1,64 @@
+{
+  "experiment": "Figure S4K - fixed angle strength sweep",
+  "run_simulation": true,
+  "sweep_var": "strength",
+  "base_params": {
+    "goals": [],
+    "num_groups": 32,
+    "num_spins_per_group": 10,
+    "T": 0.4,
+    "suppression_scaling": 5,
+    "intrinsic_stimulation": 0.0,
+    "J": 18,
+    "nu": 0.5,
+    "dynamics": "glauber",
+    "dt": 1,
+    "tau": 160,
+    "step_size": 0.01,
+    "initial_position": [
+      0,
+      0
+    ],
+    "initial_orientation": 0,
+    "stop_on_goal": false,
+    "time_delay": 0,
+    "egocentric": false,
+    "prerun": true,
+    "prerun_config": {
+      "distribution": "von_mises",
+      "peak_angle": 0
+    }
+  },
+  "num_runs": 10,
+  "num_steps": 1000,
+  "angle_rad": 2.0943951023931953,
+  "strength_values": [
+    0,
+    0.1,
+    0.2,
+    0.3,
+    0.4,
+    0.5,
+    0.6,
+    0.7,
+    0.8,
+    0.9,
+    1
+  ],
+  "fixed_goal1": {
+    "radius": 10.0,
+    "strength": 0.5,
+    "kappa": 10.0
+  },
+  "fixed_goal2": {
+    "radius": 10.0,
+    "kappa": 10.0
+  },
+  "save_dir": "Figures/{now:%Y%m%d_%H%M%S}_FigureS4K",
+  "store_spin_states": false,
+  "max_workers": null,
+  "base_seed": 12345,
+  "plot_enabled": true,
+  "plot_filename": "FigureS4K.svg",
+  "plot_jitter_scale": 0.03
+}

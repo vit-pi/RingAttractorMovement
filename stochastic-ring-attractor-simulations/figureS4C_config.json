@@ -1,0 +1,65 @@
+{
+  "experiment": "Figure S4C - static decision angle sweep",
+  "base_params": {
+    "goals": [],
+    "num_groups": 32,
+    "num_spins_per_group": 10,
+    "T": 0.4,
+    "suppression_scaling": 5,
+    "intrinsic_stimulation": 0.0,
+    "J": 18,
+    "nu": 0.5,
+    "dynamics": "glauber",
+    "dt": 1,
+    "tau": 160,
+    "step_size": 0.01,
+    "initial_position": [
+      0,
+      0
+    ],
+    "initial_orientation": 0,
+    "stop_on_goal": false,
+    "time_delay": 0,
+    "egocentric": false,
+    "prerun": true,
+    "prerun_config": {
+      "distribution": "von_mises",
+      "peak_angle": 0
+    }
+  },
+  "num_runs": 1,
+  "angles_rad_min": 0.0,
+  "angles_rad_max": 3.141592653589793,
+  "angles_rad_num": 185,
+  "kappa_values": [
+    10.0,
+    10.0
+  ],
+  "strength_values": [
+    1.0,
+    1.0
+  ],
+  "save_dir": "Figures/{now:%Y%m%d_%H%M%S}_FigureS4C",
+  "store_spin_states": false,
+  "max_workers": null,
+  "base_seed": 12345,
+  "plot_enabled": true,
+  "plot_filename": "FigureS4C.svg",
+  "plot_dpi": 300,
+  "plot_transparent": true,
+  "plot_bbox_inches": "tight",
+  "plot_jitter_scale": 0.03,
+  "plot_seed": 0,
+  "plot_show": false,
+  "plot_axes_box_mm": [
+    50.755,
+    22.861
+  ],
+  "plot_axes_margins_mm": [
+    18,
+    8,
+    6,
+    12
+  ],
+  "plot_save_dir": null
+}
