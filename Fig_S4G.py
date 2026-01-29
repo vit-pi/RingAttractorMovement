@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 def main():
-    root = Path(__file__).resolve().parent / "stochastic-ring-attractor-simulations"
+    root = Path(__file__).resolve().parent / "Fig_S4"
     cmd = [
         sys.executable,
         str(root / "Fig_S4GK.py"),
