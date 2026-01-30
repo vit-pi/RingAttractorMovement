@@ -19,5 +19,5 @@ ind_prop = [bm.IndProp(beh_prop)]
 # Create a colormap
 yellows = LinearSegmentedColormap.from_list("Yellows", [(0.0,(1,1,0.8)), (0.2,(0.8, 0.6, 0)),(1.0,(0.4, 0.3, 0.00))])
 # Run the simulation
-bm.snapshot_trajectory(env_prop,ind_prop,["Blues",yellows],fig_name,True,1,deterministic,plot_S=True,stat_t_lag=150,gradient=True,S_lim=(0,0.2))
+bm.snapshot_trajectory(env_prop,ind_prop,["Blues",yellows],fig_name,True,3,deterministic,plot_S=True,stat_t_lag=150,gradient=True,S_lim=(0,0.2))
 
