@@ -16,8 +16,8 @@ Additionally, multiple plotting functions that use these objects are included. F
 ### Fig_X.py
 These files reproduce various figure panels X in [1]. If more than one panel is provided (e.g. Fig_X_Y.py), the beginning of the file includes a boolean variable (usually called deterministic, corresponding to mean-field as opposed to stochastic simulations) and a description how to set this variable (True/False) to reproduce an appropriate figure panel (X/Y). The output preliminary figures are saved in the Figures folder.
 
-### Other figures
-To reproduce Fig. S4 panels C, F, G, K and J please open Fig_S4 folder and follow the description there.
+### Fig_S4 (folder)
+This folder includes the code to reproduce Fig. S4 panels C, F, G, K and J. In particular, the corresponding figure files use the code from the Fig_S4 folder. Please open this folder for further description.
 
 ## Installation guide
 (Tested on macOS Sequoia 15.6.1, Apple M4 Max, 128 GB RAM, Python and PyCharm installed. The estimated run time for producing a movement trajectory in [1]: 5 minutes (where the exact runt-time might depending on a particular task.)
