@@ -1,5 +1,4 @@
 # RingAttractorMovement
-[![DOI](https://zenodo.org/badge/1048671519.svg)](https://doi.org/10.5281/zenodo.22232840)
 This project provides the code to explore how different animal movement trajectories arise from the underlying dynamics of neural ring attractors [1]. It is instructive to first read [1] to understand this project. The code was written in Python.
 
 ## Code structure
