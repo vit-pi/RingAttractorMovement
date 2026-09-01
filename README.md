@@ -38,4 +38,4 @@ This folder includes the code to reproduce Fig. S4 panels C, F, G, K and J. In p
 4) Open the folder "Figure" to find the new files Fig_ModelOverview.png and Fig_ModelOverview.svg.
 
 # References
-[1] V. Piskovsky, A. Paula, D. Gorbonos, P.K. Maini, I.D. Couzin, The neural basis of spatial exploration and decision-making, 2025.
+[1] V. Piskovsky, A. Paula, D. Gorbonos, P.K. Maini, I.D. Couzin, The neural basis of spatial exploration and decision-making, 2026.
