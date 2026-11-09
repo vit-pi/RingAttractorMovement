@@ -1179,12 +1179,12 @@ def snapshot_move(pattern, heading, trajectory, labels, ax,  adjusted_plane=True
             if cue[0] == 0:
                 x,y = cue[4],cue[5]
                 radius = 2
-                circle = patches.Circle((x, y), radius, color="#c83737ff")  # (center_x, center_y), radius
+                circle = patches.Circle((x, y), radius, color="#808080ff")  # (center_x, center_y), radius
                 ax.add_patch(circle)
             elif cue[0] == 3:
                 x,y = cue[4],cue[5]
                 radius = cue[2]
-                circle = patches.Circle((x, y), radius, color="#c83737ff")  # (center_x, center_y), radius
+                circle = patches.Circle((x, y), radius, color="#808080ff")  # (center_x, center_y), radius
                 ax.add_patch(circle)
         # position
         x = pattern.nx[pattern.pt_now][ind][pattern.env_prop.angle_num]
@@ -1400,7 +1400,7 @@ def snapshot_trajectory(env_prop, ind_prop, beh_cmap, fig_name, labels, seed, de
         fig_stats.savefig("Figures//" + fig_name + "_Stats.svg")
 
 # Create movie snapshots of both brain and movement dynamics
-def movie_snapshots(env_prop, ind_prop, beh_cmap, plot_time, heading, trajectory, anim_name, seed):
+def movie_snapshots(env_prop, ind_prop, beh_cmap, plot_time, heading, trajectory, anim_name, seed, deterministic, adjusted_plane=False):
     """
     Generates a series of snapshots for a simulation.
 
@@ -1463,16 +1463,16 @@ def movie_snapshots(env_prop, ind_prop, beh_cmap, plot_time, heading, trajectory
     while pattern.time <= pattern.env_prop.time_max:
         if pattern.time >= plot_index*plot_time:
             # snapshot of movement
-            snapshot_move(pattern, heading, trajectory, False,  ax_move,True)
+            snapshot_move(pattern, heading, trajectory, False,  ax_move,adjusted_plane)
             ax_move.set_xticks([])
             ax_move.set_yticks([])
             # snapshot of the brain
             for ind in range(pattern.env_prop.ind_num):
                 cm = snapshot_brain(pattern,ind,True,ax_brain[ind],cmap=beh_cmap[ind])
             # update simulation
-            pattern.update_pattern()
+            pattern.update_pattern(deterministic)
             # take a snapshot and clear the canvas
-            fig.savefig(folder_name+"//"+anim_name+"-"+str(plot_index+1)+".png", dpi=300, format='png')  # save the figure to file
+            fig.savefig(folder_name+"//"+anim_name+"-"+str(plot_index+1)+".png", dpi=1000, format='png')  # save the figure to file
             for ax in ax_brain:
                 for artist in ax.lines + ax.collections + ax.patches:
                     artist.remove()
@@ -1483,7 +1483,7 @@ def movie_snapshots(env_prop, ind_prop, beh_cmap, plot_time, heading, trajectory
             plot_index += 1
         else:
             # update simulation
-            pattern.update_pattern()
+            pattern.update_pattern(deterministic)
 
 # Create snapshots of movements towards targets
 def snapshot_targets(env_prop, ind_prop, beh_cmap, fig_name, labels, seed, deterministic, allocentric=True, adjusted_plane=True, repeats=10):
